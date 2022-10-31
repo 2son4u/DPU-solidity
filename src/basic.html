@@ -42,11 +42,36 @@
             <!-- Sender List -->
             <div class="card mb-3">
                 <div class="card-header">
-
+                    Transfer Money 
                 </div>
                 <div class="card-body">
-
+                    <select name="" id="Sender" class="form-select" aria-label="Default select example">
+                        <option selected>Select Receiver Account</option>
+                    </select>
+                    <br>
+                    <select name="" id="Receiver" class="form-select" aria-label="Default select example">
+                        <option selected>Select Receiver Account</option>
+                    </select>
+                    <br>
+                    <div class="row">
+                        <div class="col-2">
+                          <label for="TransferAmount">Transfer Amount</label>
+                        </div>
+                        <div class="col-7">
+                          <input id="TransferAmount" type="text" class="form-control" 
+                          placeholder="Enter Amount Here" aria-label="Transfer Amount">
+                        </div>
+                        <div class="col-1">
+                            <div>Ether</div>
+                          </div>
+                          <div class="col-2">
+                            <button id="TranferBtn" class="btn btn-primary mb-3">Transfer</button>
+                          </div>
+                      </div>
                 </div>
+                <hr>
+                <legend class="lead fw-bold">Transaction Logs</legend>
+                <ul id="TransactionLog"></ul>
             </div>
     </div>
 </body>
