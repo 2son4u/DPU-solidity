@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Load DApp</title>
+    <link rel="stylesheet" href="bootstrap/dist/css/bootstrap.min.css">
+    <script src="jquery/dist/jquery.min.js"></script>
+    <script src="bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="web3/dist/web3.min.js"></script>
+    <script src="bignumber.js/bignumber.js"></script>
+    <script src='@truffle/contract/browser-dist/truffle-contract.min.js'></script>
+    <script src="js/simpleloan.js"></script>
+</head>
+
+<body onload="init()">
+    <div class="container">
+        <div class="card mt-5">
+            <div class="card-header">
+                Simple Load DApp
+            </div>
+            <div class="card-body">
+                <div class="card mb-3"> <!-- loan information -->
+                    <div class="card-header">
+                        (1) Loan Information
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-2"> <!-- row 1 -->
+                            <div class="col"><label for="LoanOwner">LoanOwner:</label></div>  <!-- col -->
+                            <div class="col"><p id="LoanOwner"></p></p></div>  
+                        </div>
+                        <div class="row mb-2"> <!-- row 2 -->
+                            <div class="col"><label for="LoanContractAddress">Loan Contrack Address:</label></div>  <!-- col -->
+                            <div class="col"><p id="LoanContractAddress"></p></p></div>  
+                        </div>
+                        <div class="row mb-2"> <!-- row 3 -->
+                            <div class="col"><label for="LoanContractBalance">Loan Contract Balance:</label></div>  <!-- col -->
+                            <div class="col"><p id="LoanContractBalance"></p></p></div>  
+                        </div>
+                        <div class="row mb-2"> <!-- row 4 -->
+                            <div class="col"><label for="BorrowerCount">Borrower Count:</label></div>  <!-- col -->
+                            <div class="col"><p id="BorrowerCount"></p></p></div>  
+                        </div>
+                        <div class="row mb-2"> <!-- row 5 -->
+                            <div class="col"><label for="InterestRate">Interest Rate (%)</label></div>  <!-- col -->
+                            <div class="col"><p id="InterestRate"></p></p></div>  
+                        </div>
+                        <div class="row mb-2"> <!-- set interest rate -->
+                            <div class="col-2">
+                                <label for="NewInterestRate">Set New Interest Rate</label>
+                            </div> 
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="NewInterestRate" 
+                                placeholder="New Interest Rate">
+                            </div>
+                            <div class="col-1">
+                                <label>Percent(%)</label>
+                            </div>
+                            <div class="col-2">
+                                <button id="NewInterestRateBtn" type="submit" class="btn btn-primary">OK</button>
+                            </div>
+                        </div> <!-- set interest rate -->
+                        <div class="row mb-2"> <!-- withdraw -->
+                            <div class="col-2">
+                                <label for="WithdrawAmount">Withdraw</label>
+                            </div>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="WithdrawAmount" 
+                                placeholder="Enter Withdraw Amount">
+                            </div>
+                            <div class="col-1">
+                                <label>Ether</label>
+                            </div>
+                            <div class="col-2">
+                                <button id="WithdrawBtn" type="submit" class="btn btn-primary">OK</button>
+                            </div>
+                        </div> <!-- withdraw -->
+                    </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header">(2) Account Balances</div>
+                    <div class="card-body">
+                        <table class="table text-center">
+                            <thead>
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Account Address</th>
+                                    <th scope="col">Balance (Ether)</th>
+                                    <th scope="col">Loan Debt (Ether)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountList">
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card mb-3"> <!-- Borrowing -->
+                    <div class="card-header">
+                        (3) Borrowing
+                    </div>
+                    <div class="card-body">
+                        <select class="form-select" id="Borrowers"></select><br>
+                        <div class="row">
+                            <div class="col-2">
+                                <label for="BorrowAmount">Borrowing Amount</label>
+                            </div>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="BorrowAmount" 
+                                placeholder="Enter Borrowing Amount">
+                            </div>
+                            <div class="col-1">
+                                <label>Ether</label>
+                            </div>
+                            <div class="col-2">
+                                <button id="BorrowBtn" type="submit" class="btn btn-primary">Borrow</button>
+                            </div>
+                        </div>
+                        <hr>
+                        <legend class="lead fw-bold">Borrowing Transaction Logs</legend>
+                        <ul id="BorrowTxLog"></ul>
+                    </div>
+                </div> <!-- Borrowing -->
+                <div class="card mb-3"> <!-- Payback -->
+                    <div class="card-header">
+                        (4) Payback
+                    </div>
+                    <div class="card-body">
+                        <select class="form-select" id="PaybackBorrowers"></select><br>
+                        <div class="row"> <!-- row -->
+                            <div class="col-2">
+                                <label for="PaybackAmount">Payback Amount</label>
+                            </div>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="PaybackAmount" 
+                                placeholder="Enter Payback Amount">
+                            </div>
+                            <div class="col-1">
+                                <label>Ether</label>
+                            </div>
+                            <div class="col-2">
+                                <button id="PaybackBtn" type="submit" class="btn btn-primary">Payback</button>
+                            </div>
+                        </div> <!-- row -->
+                        <hr>
+                        <legend class="lead fw-bold">Payback Transaction Logs</legend>
+                        <ul id="PaybackTxLog"></ul>
+                    </div>
+                </div> <!-- Payback -->
+                <div class="card mb-3"> <!-- Event log -->
+                    <div class="cardd-header"> (5) Event Log</div>
+                    <div class="card-body"><ul id="EventLog"></ul></div>
+                </div> <!-- Event log -->
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
