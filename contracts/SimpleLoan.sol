@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
-pragma solidity  >=0.8.0;
+pragma solidity >=0.8.0;
 
 contract SimpleLoan {
     // payable จะทำให้สามารถรับเงินได้
@@ -17,7 +17,7 @@ contract SimpleLoan {
     // เศษ
     uint public interestRateNumberator;
 
-    //ส่วน 
+    //ส่วน
     uint public interestRateDenominator;
 
     uint public constant DEFAULT_INTEREST_NUMERATOR = 1;
@@ -25,7 +25,7 @@ contract SimpleLoan {
     uint public constant PAYBACK_PERIOD = 60 * 60 * 24 * 7; // วิ, นาที, ชั่วโมง, วัน
 
     // ผู้ยืม
-    address[] public borrowers; 
+    address[] public borrowers;
     // สถานะของ contract
     bool active;
 
@@ -40,24 +40,33 @@ contract SimpleLoan {
     }
 
     // กำหนดว่าฟังชันนี้เรียกใช้ได้จากเจ้าของเท่านั้น
-    modifier onlyOwner {
+    modifier onlyOwner() {
         // ถ้าเงื่อนไขใน require ผิดจะถูกย้อนกลับทั้งหมด
         require(msg.sender == owner, "Only owner allowed");
         _; //ให้ทำงานต่อไปได้
     }
 
-    modifier notAnOwner {
+    modifier notAnOwner() {
         require(msg.sender != owner, "Only owner not allowed");
         _;
     }
 
-    modifier whenActive {
+    modifier whenActive() {
         require(active, "Contract is not active");
         _;
     }
 
+    function getBorrowers() public view returns (address[] memory) {
+        return borrowers;
+    }
+
+    function getDebt(address borrower) public view returns (uint) {
+        return debts[borrower].balance;
+    }
+
     // event เป็นการสร้าง log
     event Deposited(uint time, uint amout, uint balance);
+
     // ฟังชันที่รับเงินได้จะต้องมี payable
     // เฉพาะ owner ที่ฝากเงินได้และ contract ต้อง active
     function deposit() public payable onlyOwner whenActive {
@@ -67,6 +76,7 @@ contract SimpleLoan {
 
     // log rate
     event InterestRateChanged(uint time, uint newRate);
+
     // เปลี่ยนแปรงอัตราดอกเบี้ยตั้งแต่ 0 - 100
     function setInterestRate(uint numerator) public onlyOwner whenActive {
         require(numerator > 0, "Invalid interest rate");
@@ -89,7 +99,8 @@ contract SimpleLoan {
         require(address(this).balance >= amount, "Not enough balance");
 
         // ถ้าหารก่อนแล้วมา * จะทำให้ค่าอาดคาดเคลื่น แนะนำให้ * ก่อนแล้วค่อย /
-        uint interest = (amount * interestRateNumberator / interestRateDenominator); // ดอกเบี้ย
+        uint interest = ((amount * interestRateNumberator) /
+            interestRateDenominator); // ดอกเบี้ย
         uint debt = amount + interest;
 
         // ถ้าไม่มีข้อมูลมันจะ return 0 ออกมา
@@ -112,11 +123,16 @@ contract SimpleLoan {
         emit Borrwed(block.timestamp, amount, interest, msg.sender);
     }
 
-
     // เพื่อชำระคืน
     event Paybacked(uint time, uint amount, uint remaining, address borrower);
     // period ระยะเวลาที่เกินมา
-    event LatePayback(uint time, uint amount, uint remaining, address borrower, uint period);
+    event LatePayback(
+        uint time,
+        uint amount,
+        uint remaining,
+        address borrower,
+        uint period
+    );
     // ถ้าชำระหนี้หมด
     event deptClreared(uint time, address borrower);
 
@@ -129,18 +145,25 @@ contract SimpleLoan {
         // หนี้ปัจจุบัน - เงินที่ใช้คืน
         debts[msg.sender].balance -= msg.value;
 
-    
         if (block.timestamp - debts[msg.sender].lastBorrowed < PAYBACK_PERIOD) {
             // ถ้าหากเวลายังไม่เกินกำหนด
-            emit Paybacked(block.timestamp, msg.value, debts[msg.sender].balance, msg.sender);
+            emit Paybacked(
+                block.timestamp,
+                msg.value,
+                debts[msg.sender].balance,
+                msg.sender
+            );
         } else {
             // ถ้าหากเวลาเกินกำหนด
             emit LatePayback(
-                block.timestamp, 
-                msg.value, 
-                debts[msg.sender].balance, 
-                msg.sender, 
-                block.timestamp - debts[msg.sender].lastBorrowed - PAYBACK_PERIOD);
+                block.timestamp,
+                msg.value,
+                debts[msg.sender].balance,
+                msg.sender,
+                block.timestamp -
+                    debts[msg.sender].lastBorrowed -
+                    PAYBACK_PERIOD
+            );
         }
 
         // ถ้าหนี้หมด
@@ -157,24 +180,25 @@ contract SimpleLoan {
     }
 
     event Withdraw(uint time, uint amount);
+
     // ถอนเงิน
     function withdraw(uint amount) external onlyOwner whenActive {
-
         // เงินที่ขอถอนจะต้องไม่เกินเงินที่ contract นี้มีอยู่
-        require (amount <= address(this).balance, "Not enough balance");
+        require(amount <= address(this).balance, "Not enough balance");
         // address ของผู้รับ.transfer(จำนวนเงิน)
         owner.transfer(amount);
         emit Withdraw(block.timestamp, amount);
     }
 
     event ClosedDown(uint time);
+
     //เลิกกิจการ
     function closeDown() external onlyOwner whenActive {
-        require (borrowers.length == 0, "Can not close due existing borrowers");
+        require(borrowers.length == 0, "Can not close due existing borrowers");
         active = false;
         emit ClosedDown(block.timestamp);
-        
-        // ทำลายตัวเอง 
+
+        // ทำลายตัวเอง
         // address ยังอยู่อยู่แต่ไม่ทำงาน
         // เงินเหลือเท่าไหร่จะโอนเงินให้ Owner อัตโนมัติ
         selfdestruct(owner);
