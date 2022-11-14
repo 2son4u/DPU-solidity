@@ -9,8 +9,65 @@ const DEFAULT_OPTION = -1;
 async function init() {
     const provider = new Web3.providers.HttpProvider(WEB3_URL);
     web3 = new Web3(provider);
+    accounts = await web3.eth.getAccounts()
     await deployCintract();
-    await populateAccountTable();
+    // await populateAccountTable();
+}
+
+async function setupBorrowButton(){
+    $('#BorrowBtn').on('click', async e => {
+        let borrowAmount = parseFloat( $('#BorrowAmount').val());
+        if(isNaN(borrowAmount) || typeof borrower == 'undefined')
+            return;
+        const amount = web3.utils.toWei(borrowAmount, 'ether');
+        try {
+            const estGas = await simpleLoan.borrow.estimateGas(amount, { from: borrower });
+            const sendingGas = Math.ceil(estGas * 1.5);
+            const receipt = await simpleLoan.borrow(amount, { from: borrower, gas: sendingGas });
+            updateBorrowLog(receipt);
+        } catch (err){
+            console.log(err);
+            alert('Unable to borrow');
+            return;
+        } finally {
+            resetBorrowControl();
+        }
+    });
+}
+
+function resetBorrowControl(){
+    $('#BorrowAmount').val('');
+    $('#Borrowers').val(-1);
+}
+
+function updateBorrowLog(receipt){
+    const logEntry = 
+    '<li><p>TxHash' + receipt.transactionHash + '</p>' +
+    '<p>BlockNumber' + receipt.blockNumber + '</p>' +
+    '<p>Borrower:' + receipt.from + '</p>'+
+    '<p>Gas used:' + receipt.cumulativeGasUsed +'</p>'+
+    '</li>';
+    $('#BorrowTransactionLog').append(logEntry);
+}
+
+async function updateSelectOptions(){
+    if(!(Array.isArray(accounts) || !accounts.length > 0))
+        return;
+    let borrowerOptions = '<option value="-1">Select Borrower Account</option>';
+    for(let i = 1; i < accounts.length; i++){
+        borrowerOptions += '<option value="' + i + '">' + 
+            (i+1) + ') ' + accounts[i] + '</option>';
+    }
+    $('#Borrowers').html(borrowerOptions);
+    $('#PaybackBorrowers').html(borrowerOptions);
+    $('#Borrowers').on('change', async e => {
+        borrowIndex = e.target.value;
+        borrower = accounts[borrowIndex];
+    });
+    $('#PaybackBorrowers').on('change', async e => {
+        payerIndex = e.target.value;
+        payer = accounts[borrowIndex];
+    });
 }
 
 async function getLoanInfo() {
@@ -32,7 +89,7 @@ async function getLoanInfo() {
     catch (err){
         console.log(err);
     }
-    await populateAccountTable();
+    // await populateAccountTable();
 }
 
 async function deployCintract() {
@@ -43,7 +100,9 @@ async function deployCintract() {
             simpleLoan = await contract.deployed();
             contractAddress = simpleLoan.address;
             console.log('simmple loan contract : ', simpleLoan)
-            getLoanInfo();
+            await getLoanInfo();
+            await populateAccountTable();
+            await updateSelectOptions();
         }catch (err) {
             console.log(err);
         }
@@ -59,9 +118,23 @@ async function populateAccountTable() {
     // ดึงข้อมูล account
     try 
     {
-        accounts = await web3.eth.getAccounts();
+        // accounts = await web3.eth.getAccounts();
         await getBalance();
         await getDebtsInfo();
+        const borrowers = await simpleLoan.getBorrowers.call();
+        const currentDebts = [];
+        for(let i =0; i < accounts.length; i++){
+            let found = false;
+            for(let j = 0; borrowers.length; j++){
+                currentDebts[i] = web3.utils.fromWei(debts[j],'ether');
+                found = true;
+                break;
+            }
+            if(!found){
+                currentDebts[i] = 0;
+            }
+        }
+
         if (Array.isArray(accounts) && accounts.length > 0) {
             let htmlStr = '';
             for (let index = 0; index < accounts.length; index++) {
@@ -70,7 +143,7 @@ async function populateAccountTable() {
                 htmlStr += `<th scope="row">${index + 1}</th>`;
                 htmlStr += `<td>${accounts[index]}</td>`;
                 htmlStr += `<td>${Number(balanceEth).toFixed(8)}</td>`;
-                htmlStr += '<td>'+web3.utils.fromWei(debts[i],'ether') + '</td>';
+                htmlStr += '<td>'+ currentDebts[index] + '</td>';
                 htmlStr += '</tr>';
             }
 
