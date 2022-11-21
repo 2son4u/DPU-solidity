@@ -23,11 +23,11 @@ async function setupBorrowButton(){
         let borrowAmount = parseFloat( $('#BorrowAmount').val());
         if(isNaN(borrowAmount) || typeof payer == 'undefined')
             return;
-        const amount = web3.utils.toWei(borrowAmount, 'ether');
+        const amount = web3.utils.toWei(String(borrowAmount), 'ether');
         try {
             const estGas = await simpleLoan.borrow.estimateGas(amount, { from: payer });
             const sendingGas = Math.ceil(estGas * 1.5);
-            const receipt = await simpleLoan.borrow(amount, { from: payer, gas: sendingGas });
+            const {receipt} = await simpleLoan.borrow(amount, { from: payer, gas: sendingGas });
             updateBorrowLog(receipt);
             await getLoanInfo();
             await populateAccountTable();
@@ -53,7 +53,7 @@ function updateBorrowLog(receipt){
     '<p>Borrower:' + receipt.from + '</p>'+
     '<p>Gas used:' + receipt.cumulativeGasUsed +'</p>'+
     '</li>';
-    $('#BorrowTransactionLog').append(logEntry);
+    $('#BorrowTxLog').append(logEntry);
 }
 
 async function setupPaybackButton(){
@@ -61,11 +61,11 @@ async function setupPaybackButton(){
         let paybackAmount = parseFloat( $('#PaybackAmount').val());
         if(isNaN(paybackAmount) || typeof payer == 'undefined')
             return;
-        const amount = web3.utils.toWei(paybackAmount, 'ether');
+        const amount = web3.utils.toWei(String(paybackAmount), 'ether');
         try {
-            const estGas = await simpleLoan.payback.estimateGas(amount, { from: payer });
+            const estGas = await simpleLoan.payback.estimateGas( {value : amount,  from: payer });
             const sendingGas = Math.ceil(estGas * 1.5);
-            const receipt = await simpleLoan.payback(amount, { from: payer, gas: sendingGas });
+            const {receipt} = await simpleLoan.payback({value:amount, from: payer, gas: sendingGas });
             updatePaybackLog(receipt);
             await getLoanInfo();
             await populateAccountTable();
@@ -91,7 +91,7 @@ function updatePaybackLog(receipt){
     '<p>Payer:' + receipt.from + '</p>'+
     '<p>Gas used:' + receipt.cumulativeGasUsed +'</p>'+
     '</li>';
-    $('#PaybackTransactionLog').append(logEntry);
+    $('#PaybackTxLog').append(logEntry);
 }
 
 async function setupEventListener(){
@@ -102,7 +102,7 @@ async function setupEventListener(){
         'Ether at ' + dateTime + '</li>';
         $('#EventLog').append(html);
     });
-    simpleLoan.interestRateChanged().on('data', e => {
+    simpleLoan.InterestRateChanged().on('data', e => {
         const dateTime = (new Date(e.returnValues.time * 1000)).toLocaleString();
         const newRate = e.returnValues.newRate;
         const html = '<li class="lead">[InterestRateChanged]:Interest Rate has changed from to '
@@ -113,7 +113,7 @@ async function setupEventListener(){
         const dateTime = (new Date(e.returnValues.time * 1000)).toLocaleString();
         const amountEther = web3.utils.fromWei(e.returnValues.amount,'ether');
         const borrower = e.returnValues.borrower;
-        const html = '<li class="lead">[Borrowed]:Borrower (' + borrwer + 
+        const html = '<li class="lead">[Borrowed]:Borrower (' + borrower + 
         ') has borrowed '+amountEther+'Ether at ' + dateTime + '</li>';
         $('#EventLog').append(html);
     });
@@ -122,11 +122,11 @@ async function setupEventListener(){
         const amountEther = web3.utils.fromWei(e.returnValues.amount,'ether');
         const borrower = e.returnValues.borrower;
         const remainingEther = web3.utils.fromWei(e.returnValues.remaining,'ether');
-        const html = '<li class="lead">[Paybacked]:Borrower (' + borrwer + 
+        const html = '<li class="lead">[Paybacked]:Borrower (' + borrower + 
         ') has repaid '+amountEther+ 'Ether ( ' + remainingEther + ' Ether remaining) at ' + dateTime + '</li>';
         $('#EventLog').append(html);
     });
-    simpleLoan.LatePaybacked().on('data', e => {
+    simpleLoan.LatePayback().on('data', e => {
         const dateTime = (new Date(e.returnValues.time * 1000)).toLocaleString();
         const amountEther = web3.utils.fromWei(e.returnValues.amount,'ether');
         const borrower = e.returnValues.borrower;
@@ -136,14 +136,14 @@ async function setupEventListener(){
         ') has repaid '+amountEther+ 'Ether ( ' + remainingEther + ' Ether remaining) at ' + dateTime + '(LATE BY: '+ period + ' Seconds) </li>';
         $('#EventLog').append(html);
     });
-    simpleLoan.DebtCleared().on('data', e => {
+    simpleLoan.deptClreared().on('data', e => {
         const dateTime = (new Date(e.returnValues.time * 1000)).toLocaleString();
         const borrower = e.returnValues.borrower;
         const html = '<li class="lead">[DebtCleared]:Borrower (' + borrwer + 
         ') has repaid all debt at ' + dateTime + '</li>';
         $('#EventLog').append(html);
     });
-    simpleLoan.Withdrawn().on('data', e => {
+    simpleLoan.Withdraw().on('data', e => {
         const dateTime = (new Date(e.returnValues.time * 1000)).toLocaleString();
         const amountEther = web3.utils.fromWei(e.returnValues.amount,'ether');
         const html = '<li class="lead">[Withdrawn]:Owner has withdrawn ' + amountEther + 
@@ -177,13 +177,20 @@ async function updateSelectOptions(){
     });
 }
 
-async function getLoanInfo() {
+async function firstTimeDeposit(){
     owner = accounts[0];
+    const firstDeposit = web3.utils.toWei('20','ether');
+    try{
+        await simpleLoan.deposit({value: firstDeposit, from: owner});
+    } catch(err){
+        console.log(err);
+    }
+}
+
+async function getLoanInfo() {
     $('#LoanOwner').html(owner);
     $('#LoanContractAddress').html(contractAddress);
-    const firstDeposit = web3.utils.toWei('20', 'ether');
     try {
-        await simpleLoan.deposit({value: firstDeposit, from: owner})
         const contractBalance = await web3.eth.getBalance(contractAddress);
         $('#LoanContractBalance').html(web3.utils.fromWei(contractBalance,'ether'));
         const borrowers = await simpleLoan.getBorrowers.call();
@@ -199,6 +206,56 @@ async function getLoanInfo() {
     // await populateAccountTable();
 }
 
+async function setupNewInterestRateButton(){
+    $('#NewInterestRateBtn').on('click',async e => {
+        let newRate = ($('#NewInterestRate').val());
+        if(isNaN(newRate) || newRate <= 0){
+            alert('Invalid Interest Rate');
+            return;
+        }
+        try{
+            const estGas = await simpleLoan.setInterestRate.estimateGas(String(newRate), { from:owner });
+            const sendingGas = Math.ceil(estGas * 1.5);
+            await simpleLoan.setInterestRate((String(newRate), {from: owner, gas: sendingGas}));
+            const rateNumerator = await simpleLoan.interestRateNumberator.call();
+            const rateDenominator = await simpleLoan.interestRateDenominator.call();
+            $('#InterestRate').html(Number(rateNumerator * 100 / rateDenominator).toFixed(2));
+        } catch(err){
+            console.log(err);
+        } finally {
+            $('#NewInterestRate').val('');
+        }
+    });
+}
+
+async function setupWithdrawButton(){
+    $('#WithdrawBtn').on('click',async e => {
+        let amount = String($('#WithdrawAmount').val());
+        if(isNaN(amount) || amount <= 0){
+            alert('Invalid Withdraw Amount');
+            return;
+        }
+
+        const contractBalanceBN = new web3.utils.BN(await web3.eth.getBalance(contractAddress));
+        let withdrawBN = new web3.utils.BN( web3.utils.toWei(String(amount), 'ether') );
+        if(withdrawBN.gt(contractBalanceBN)){
+            alert('Insufficient fund to withdraw');
+            return;
+        }
+        try{
+           const estGas = await simpleLoan.withdraw.estimateGas(withdrawBN,{from:owner});
+           const sendingGas = Math.ceil(estGas * 1.5);
+           await simpleLoan.withdraw(withdrawBN, {from:owner,gas:sendingGas});
+        }catch (err){
+            console.log(err)
+        } finally {
+            $('#WithdrawAmount').val('');
+        }
+        await populateAccountTable();
+        await getLoanInfo();
+    })
+}
+
 async function deployContract() {
     $.getJSON('SimpleLoan.json', async contractABI => {
         const contract = TruffleContract(contractABI);
@@ -207,12 +264,15 @@ async function deployContract() {
             simpleLoan = await contract.deployed();
             contractAddress = simpleLoan.address;
             console.log('simmple loan contract : ', simpleLoan)
+            await setupEventListener();
+            await firstTimeDeposit();
             await getLoanInfo();
             await populateAccountTable();
             await updateSelectOptions();
             await setupBorrowButton();
             await setupPaybackButton();
-            await setupEventListener();
+            await setupWithdrawButton();
+            await setupNewInterestRateButton();
         }catch (err) {
             console.log(err);
         }
@@ -233,12 +293,15 @@ async function populateAccountTable() {
         await getDebtsInfo();
         const borrowers = await simpleLoan.getBorrowers.call();
         const currentDebts = [];
+        console.log(borrowers.length)
         for(let i =0; i < accounts.length; i++){
             let found = false;
-            for(let j = 0; borrowers.length; j++){
-                currentDebts[i] = web3.utils.fromWei(debts[j],'ether');
-                found = true;
-                break;
+            for(let j = 0;j < borrowers.length; j++){
+                if(accounts[i] == borrowers[j]){
+                    currentDebts[i] = web3.utils.fromWei(debts[j],'ether');
+                    found = true;
+                    break;
+                }
             }
             if(!found){
                 currentDebts[i] = 0;

@@ -88,7 +88,7 @@ contract SimpleLoan {
         emit InterestRateChanged(block.timestamp, numerator);
     }
 
-    event Borrwed(uint time, uint amount, uint interest, address borrower);
+    event Borrowed(uint time, uint amount, uint interest, address borrower);
 
     // external ต้องเรียกจากภายนอกเท่านั้น
     // public เรียกจากภายในหรือภายนอกก็ได้
@@ -120,7 +120,7 @@ contract SimpleLoan {
         payable(msg.sender).transfer(amount);
 
         // เวลา, จำนวนเงิน, ดอกเบี้ย, ผู้ยืม
-        emit Borrwed(block.timestamp, amount, interest, msg.sender);
+        emit Borrowed(block.timestamp, amount, interest, msg.sender);
     }
 
     // เพื่อชำระคืน
